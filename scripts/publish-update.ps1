@@ -30,6 +30,10 @@ Get-Content -LiteralPath $ConfigFile | ForEach-Object {
     }
 }
 
+if ([string]::IsNullOrWhiteSpace($config.GITHUB_PAT) -and -not [string]::IsNullOrWhiteSpace($env:GITHUB_PAT)) {
+    $config.GITHUB_PAT = $env:GITHUB_PAT.Trim()
+}
+
 foreach ($key in @('GITHUB_OWNER', 'GITHUB_REPO', 'GITHUB_PAT')) {
     if (-not $config.ContainsKey($key) -or [string]::IsNullOrWhiteSpace($config[$key])) {
         throw "Missing $key in $ConfigFile"

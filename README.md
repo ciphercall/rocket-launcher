@@ -15,7 +15,7 @@ The Attendance app fetches the manifest on cold start, then downloads the correc
 
 ### 1. Create a public GitHub repo
 
-Create a new **public** repository (e.g. `pphl-attendance-ota`). Phones must download APKs without authentication.
+Create a new **public** repository (e.g. `rocket-launcher`). Phones must download APKs without authentication.
 
 ### 2. Push this project to GitHub
 
@@ -25,7 +25,7 @@ git init
 git add .
 git commit -m "Initial Rocket Launcher OTA publisher"
 git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/pphl-attendance-ota.git
+git remote add origin https://github.com/ciphercall/rocket-launcher.git
 git push -u origin main
 ```
 
@@ -42,15 +42,17 @@ copy config\github.env.example config\github.env
 Edit `github.env`:
 
 ```env
-GITHUB_OWNER=your_github_username
-GITHUB_REPO=pphl-attendance-ota
+GITHUB_OWNER=ciphercall
+GITHUB_REPO=rocket-launcher
 GITHUB_BRANCH=main
 GITHUB_PAT=ghp_your_token_here
-UPDATE_MANIFEST_URL=https://raw.githubusercontent.com/your_github_username/pphl-attendance-ota/main/ota/manifest.json
+UPDATE_MANIFEST_URL=https://raw.githubusercontent.com/ciphercall/rocket-launcher/main/ota/manifest.json
 APP_ID=com.pphl.employee_attendance
 ```
 
 Never commit `github.env` (it is gitignored).
+
+You can also set `GITHUB_PAT` as an environment variable instead of storing it in `github.env` (useful with Git Credential Manager).
 
 ## Publish a new update
 

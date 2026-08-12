@@ -1,20 +1,20 @@
 ﻿{
     "app_id":  "com.pphl.employee_attendance",
     "version_name":  "2.2.3",
-    "version_code":  37,
+    "version_code":  39,
     "force_update":  true,
-    "release_notes":  "Build 2.2.3+37",
-    "published_at":  "2026-08-12T08:52:43Z",
+    "release_notes":  "Initial GitHub OTA release",
+    "published_at":  "2026-08-12T10:16:59Z",
     "apks":  {
                  "arm64-v8a":  {
-                                   "url":  "https://hrm.peoplesitsolution.com/mobile-apks/v37/app-arm64-v8a-release.apk",
+                                   "url":  "https://github.com/ciphercall/rocket-launcher/releases/download/v2.2.3-build39/app-arm64-v8a-release.apk",
                                    "size_bytes":  47925422,
-                                   "sha256":  "8f5102cd675f741b58bee5b50e50c26b1ea1e68bb63ad07b64a4a3c385630008"
+                                   "sha256":  "fc98c89833bea500b934879199b91e2f424cd4d7bcaf286a7ebce4e8a4bf0f34"
                                },
                  "armeabi-v7a":  {
-                                     "url":  "https://hrm.peoplesitsolution.com/mobile-apks/v37/app-armeabi-v7a-release.apk",
+                                     "url":  "https://github.com/ciphercall/rocket-launcher/releases/download/v2.2.3-build39/app-armeabi-v7a-release.apk",
                                      "size_bytes":  40197422,
-                                     "sha256":  "aa416f967766cf577556f748f9518e3c25a711702299c9fae6618b69d8d898f9"
+                                     "sha256":  "dbbf19201da7b69bef6cca34f60b1c043ca902e8cf129520d6bfb24e53633a35"
                                  }
              }
 }
