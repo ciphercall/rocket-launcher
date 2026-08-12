@@ -1,0 +1,9 @@
+{
+  "app_id": "com.pphl.employee_attendance",
+  "version_name": "0.0.0",
+  "version_code": 0,
+  "force_update": true,
+  "release_notes": "Seed manifest - run publish-update.ps1 after first APK build",
+  "published_at": "2026-01-01T00:00:00Z",
+  "apks": {}
+}

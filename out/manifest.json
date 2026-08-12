@@ -1,0 +1,20 @@
+﻿{
+    "app_id":  "com.pphl.employee_attendance",
+    "version_name":  "2.2.3",
+    "version_code":  37,
+    "force_update":  true,
+    "release_notes":  "Build 2.2.3+37",
+    "published_at":  "2026-08-12T08:52:43Z",
+    "apks":  {
+                 "arm64-v8a":  {
+                                   "url":  "https://hrm.peoplesitsolution.com/mobile-apks/v37/app-arm64-v8a-release.apk",
+                                   "size_bytes":  47925422,
+                                   "sha256":  "8f5102cd675f741b58bee5b50e50c26b1ea1e68bb63ad07b64a4a3c385630008"
+                               },
+                 "armeabi-v7a":  {
+                                     "url":  "https://hrm.peoplesitsolution.com/mobile-apks/v37/app-armeabi-v7a-release.apk",
+                                     "size_bytes":  40197422,
+                                     "sha256":  "aa416f967766cf577556f748f9518e3c25a711702299c9fae6618b69d8d898f9"
+                                 }
+             }
+}

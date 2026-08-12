@@ -1,0 +1,4 @@
+config/github.env
+inbox/*.apk
+out/last-publish.json
+out/apks/
