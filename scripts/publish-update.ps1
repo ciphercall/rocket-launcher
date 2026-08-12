@@ -123,6 +123,7 @@ Write-Host ''
 Write-Host 'Publish complete!' -ForegroundColor Green
 Write-Host "  Manifest URL: $($manifestResult.ManifestUrl)"
 Write-Host "  Release tag:  $($releaseResult.TagName)"
+Write-Host "  Releases URL: https://github.com/$($config.GITHUB_OWNER)/$($config.GITHUB_REPO)/releases/latest" -ForegroundColor Cyan
 Write-Host "  Local manifest: $manifestPath"
 Write-Host "  Audit log: $auditPath"
 Write-Host ''

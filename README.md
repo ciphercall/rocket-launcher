@@ -11,6 +11,20 @@ Publishes split-per-ABI APKs to **GitHub Releases** and updates `ota/manifest.js
 
 The Attendance app fetches the manifest on cold start, then downloads the correct ABI APK from URLs in the manifest.
 
+## Quick publish (one double-click)
+
+**Double-click `PUBLISH-OTA-UPDATE.cmd`** (in this folder or in `../Attandance_App/`).
+
+1. Enter release notes when prompted
+2. Wait for Flutter build + GitHub upload (~3–5 min)
+3. Done — installed apps get the update on next cold start
+
+| Script | Purpose |
+|--------|---------|
+| `PUBLISH-OTA-UPDATE.cmd` | Build APKs + publish to GitHub (normal release) |
+| `PUBLISH-APK-ONLY.cmd` | Publish APKs already in `inbox/` (no rebuild) |
+| `../Attandance_App/scripts/build-production-apk.cmd` | Build APKs only (no publish) |
+
 ## One-time setup
 
 ### 1. Create a public GitHub repo
@@ -56,14 +70,18 @@ You can also set `GITHUB_PAT` as an environment variable instead of storing it i
 
 ## Publish a new update
 
-### Option A — build + publish in one step
+### Option A — one double-click (recommended)
+
+Double-click `PUBLISH-OTA-UPDATE.cmd` in this folder or in `../Attandance_App/`.
+
+### Option B — build + publish via PowerShell
 
 ```powershell
 cd ..\Attandance_App
 powershell -ExecutionPolicy Bypass -File .\scripts\build-production-apk.ps1 -Publish -ReleaseNotes "Describe what changed"
 ```
 
-### Option B — manual steps
+### Option C — manual steps
 
 1. Build production APKs:
    ```powershell
