@@ -1,9 +1,20 @@
 {
-  "app_id": "com.pphl.employee_attendance",
-  "version_name": "0.0.0",
-  "version_code": 0,
-  "force_update": true,
-  "release_notes": "Seed manifest - run publish-update.ps1 after first APK build",
-  "published_at": "2026-01-01T00:00:00Z",
-  "apks": {}
+    "app_id":  "com.pphl.employee_attendance",
+    "version_name":  "2.2.3",
+    "version_code":  39,
+    "force_update":  true,
+    "release_notes":  "Initial GitHub OTA release",
+    "published_at":  "2026-08-12T10:16:59Z",
+    "apks":  {
+                 "arm64-v8a":  {
+                                   "url":  "https://github.com/ciphercall/rocket-launcher/releases/download/v2.2.3-build39/app-arm64-v8a-release.apk",
+                                   "size_bytes":  47925422,
+                                   "sha256":  "fc98c89833bea500b934879199b91e2f424cd4d7bcaf286a7ebce4e8a4bf0f34"
+                               },
+                 "armeabi-v7a":  {
+                                     "url":  "https://github.com/ciphercall/rocket-launcher/releases/download/v2.2.3-build39/app-armeabi-v7a-release.apk",
+                                     "size_bytes":  40197422,
+                                     "sha256":  "dbbf19201da7b69bef6cca34f60b1c043ca902e8cf129520d6bfb24e53633a35"
+                                 }
+             }
 }
