@@ -22,7 +22,7 @@ function Build-UpdateManifest {
         apks          = $ApkEntries
     }
 
-    return ($manifest | ConvertTo-Json -Depth 6)
+    return ($manifest | ConvertTo-Json -Depth 6 -Compress)
 }
 
 function Get-FileSha256Hex {

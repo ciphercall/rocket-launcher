@@ -96,10 +96,20 @@ $manifestJson = Build-UpdateManifest `
 $outDir = Join-Path $rootDir 'out'
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 $manifestPath = Join-Path $outDir 'manifest.json'
-Set-Content -LiteralPath $manifestPath -Value $manifestJson -Encoding UTF8
+
+function Write-Utf8NoBomFile {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Content
+    )
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
+}
+
+Write-Utf8NoBomFile -Path $manifestPath -Content $manifestJson
 
 $otaLocalPath = Join-Path $rootDir 'ota\manifest.json'
-Set-Content -LiteralPath $otaLocalPath -Value $manifestJson -Encoding UTF8
+Write-Utf8NoBomFile -Path $otaLocalPath -Content $manifestJson
 
 Write-Host 'Updating manifest on GitHub...' -ForegroundColor Cyan
 $manifestResult = Update-GitHubManifestFile `
@@ -117,7 +127,7 @@ $audit = [ordered]@{
     apks          = $releaseResult.ApkEntries
 }
 $auditPath = Join-Path $outDir 'last-publish.json'
-Set-Content -LiteralPath $auditPath -Value ($audit | ConvertTo-Json -Depth 6) -Encoding UTF8
+Write-Utf8NoBomFile -Path $auditPath -Content ($audit | ConvertTo-Json -Depth 6 -Compress)
 
 Write-Host ''
 Write-Host 'Publish complete!' -ForegroundColor Green
