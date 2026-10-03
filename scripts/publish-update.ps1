@@ -2,10 +2,22 @@
 param(
     [string]$ReleaseNotes = 'App update',
     [string]$InboxDir,
-    [string]$ConfigFile
+    [string]$ConfigFile,
+    # 'prod' writes ota/manifest.json and is the default, so an existing caller
+    # is unchanged. 'beta' writes ota/beta/manifest.json, tags the release with a
+    # -beta suffix, marks it a prerelease, and refuses a build number outside the
+    # beta band.
+    [ValidateSet('prod', 'beta')]
+    [string]$Channel = 'prod'
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Build numbers are disjoint per channel. Without this a beta publish would be
+# offered to production phones, because the update check is a plain integer
+# compare with nothing channel-aware in it.
+$BetaVersionFloor = 9000
+$ProdVersionCeiling = 8999
 
 $scriptsDir = $PSScriptRoot
 $rootDir = Split-Path $scriptsDir -Parent
@@ -16,6 +28,12 @@ $rootDir = Split-Path $scriptsDir -Parent
 
 if (-not $InboxDir) { $InboxDir = Join-Path $rootDir 'inbox' }
 if (-not $ConfigFile) { $ConfigFile = Join-Path $rootDir 'config\github.env' }
+
+# Beta keeps its own inbox so a beta build can never be picked up by a later
+# prod publish that only copies over the two filenames.
+if (-not $PSBoundParameters.ContainsKey('InboxDir') -and $Channel -eq 'beta') {
+    $InboxDir = Join-Path $rootDir 'inbox\beta'
+}
 
 if (-not (Test-Path -LiteralPath $ConfigFile)) {
     throw "Missing config: $ConfigFile`nCopy config\github.env.example to config\github.env and fill in credentials."
@@ -72,7 +90,18 @@ if ($arm64Info.VersionName -ne $armInfo.VersionName) {
 
 $versionCode = $arm64Info.VersionCode
 $versionName = $arm64Info.VersionName
-Write-Host "Publishing v$versionName+$versionCode to GitHub..." -ForegroundColor Green
+
+# Enforced before anything is uploaded. A build number in the wrong band would
+# be offered to the other channel's devices on their next cold start, and the
+# failure would only show up in the field.
+if ($Channel -eq 'beta' -and $versionCode -lt $BetaVersionFloor) {
+    throw "Beta build number $versionCode is below the beta floor ($BetaVersionFloor). Rebuild with scripts\build-production-apk.ps1 -Channel beta so the number lands in the beta band."
+}
+if ($Channel -eq 'prod' -and $versionCode -gt $ProdVersionCeiling) {
+    throw "Prod build number $versionCode is inside the beta band (> $ProdVersionCeiling). Publishing it to the prod manifest would send beta builds to production phones."
+}
+
+Write-Host "Publishing [$Channel] v$versionName+$versionCode to GitHub..." -ForegroundColor Green
 
 $apkFiles = @(
     @{ Abi = 'arm64-v8a'; FileName = 'app-arm64-v8a-release.apk'; Path = $arm64Apk },
@@ -84,18 +113,30 @@ $releaseResult = Publish-GitHubReleaseApks `
     -VersionName $versionName `
     -VersionCode $versionCode `
     -ReleaseNotes $ReleaseNotes `
-    -ApkFiles $apkFiles
+    -ApkFiles $apkFiles `
+    -Channel $Channel
+
+# Beta is not forced. A forced update on a test build strands a tester who
+# cannot get through the flow, and the whole point of the channel is that a
+# tester can walk away from a bad build.
+$forceUpdate = if ($Channel -eq 'beta') { $false } else { $true }
 
 $manifestJson = Build-UpdateManifest `
     -AppId $config.APP_ID `
     -VersionName $versionName `
     -VersionCode $versionCode `
     -ReleaseNotes $ReleaseNotes `
-    -ApkEntries $releaseResult.ApkEntries
+    -ApkEntries $releaseResult.ApkEntries `
+    -ForceUpdate $forceUpdate `
+    -Channel $Channel
 
 $outDir = Join-Path $rootDir 'out'
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
-$manifestPath = Join-Path $outDir 'manifest.json'
+
+# Per-channel out files, so publishing beta does not overwrite the record of
+# what production last shipped.
+$ChannelSuffix = if ($Channel -eq 'beta') { '-beta' } else { '' }
+$manifestPath = Join-Path $outDir "manifest$($ChannelSuffix).json"
 
 function Write-Utf8NoBomFile {
     param(
@@ -108,17 +149,26 @@ function Write-Utf8NoBomFile {
 
 Write-Utf8NoBomFile -Path $manifestPath -Content $manifestJson
 
-$otaLocalPath = Join-Path $rootDir 'ota\manifest.json'
+# Mirrors the remote layout, so the local seed copy sits where the file it
+# mirrors actually lives. `ota\beta\` is created on demand.
+$otaLocalPath = if ($Channel -eq 'beta') {
+    Join-Path $rootDir 'ota\beta\manifest.json'
+} else {
+    Join-Path $rootDir 'ota\manifest.json'
+}
+New-Item -ItemType Directory -Force -Path (Split-Path -Parent $otaLocalPath) | Out-Null
 Write-Utf8NoBomFile -Path $otaLocalPath -Content $manifestJson
 
 Write-Host 'Updating manifest on GitHub...' -ForegroundColor Cyan
 $manifestResult = Update-GitHubManifestFile `
     -Config $config `
     -ManifestJson $manifestJson `
-    -CommitMessage "OTA release $versionName+$versionCode"
+    -CommitMessage "OTA release [$Channel] $versionName+$versionCode" `
+    -Channel $Channel
 
 $audit = [ordered]@{
     published_at  = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+    channel       = $Channel
     version_name  = $versionName
     version_code  = $versionCode
     release_tag   = $releaseResult.TagName
@@ -126,11 +176,12 @@ $audit = [ordered]@{
     manifest_url  = $manifestResult.ManifestUrl
     apks          = $releaseResult.ApkEntries
 }
-$auditPath = Join-Path $outDir 'last-publish.json'
+$auditPath = Join-Path $outDir ("last-publish$($ChannelSuffix).json")
 Write-Utf8NoBomFile -Path $auditPath -Content ($audit | ConvertTo-Json -Depth 6 -Compress)
 
 Write-Host ''
 Write-Host 'Publish complete!' -ForegroundColor Green
+Write-Host "  Channel:      $Channel"
 Write-Host "  Manifest URL: $($manifestResult.ManifestUrl)"
 Write-Host "  Release tag:  $($releaseResult.TagName)"
 Write-Host "  Releases URL: https://github.com/$($config.GITHUB_OWNER)/$($config.GITHUB_REPO)/releases/latest" -ForegroundColor Cyan

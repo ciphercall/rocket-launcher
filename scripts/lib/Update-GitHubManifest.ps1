@@ -2,13 +2,16 @@ function Update-GitHubManifestFile {
     param(
         [hashtable]$Config,
         [string]$ManifestJson,
-        [string]$CommitMessage
+        [string]$CommitMessage,
+        [string]$Channel = 'prod'
     )
 
     $owner = $Config.GITHUB_OWNER
     $repo = $Config.GITHUB_REPO
     $branch = if ($Config.GITHUB_BRANCH) { $Config.GITHUB_BRANCH } else { 'main' }
-    $path = 'ota/manifest.json'
+    # Each channel has its own manifest file, or the two feeds would overwrite
+    # each other and a beta publish would push beta builds to production phones.
+    $path = if ($Channel -eq 'beta') { 'ota/beta/manifest.json' } else { 'ota/manifest.json' }
     $uri = "https://api.github.com/repos/$owner/$repo/contents/$path"
 
     $headers = @{
@@ -41,14 +44,15 @@ function Update-GitHubManifestFile {
     $jsonBody = $body | ConvertTo-Json
     $result = Invoke-RestMethod -Method Put -Uri $uri -Headers $headers -Body $jsonBody -ContentType 'application/json; charset=utf-8'
 
-    $manifestUrl = if ($Config.UPDATE_MANIFEST_URL) {
-        $Config.UPDATE_MANIFEST_URL
-    } else {
-        "https://raw.githubusercontent.com/$owner/$repo/$branch/ota/manifest.json"
-    }
+    # Derived from the path actually written, not from $Config.UPDATE_MANIFEST_URL.
+    # That config key is a flat prod-only URL; trusting it here would make a beta
+    # publish report the prod manifest as its result, while the file it really
+    # wrote sat unnoticed at ota/beta/manifest.json.
+    $manifestUrl = "https://raw.githubusercontent.com/$owner/$repo/$branch/$path"
 
     return [pscustomobject]@{
         ManifestUrl = $manifestUrl
+        ManifestPath = $path
         CommitSha     = $result.commit.sha
     }
 }

@@ -12,7 +12,8 @@ function New-GitHubRelease {
         [hashtable]$Config,
         [string]$TagName,
         [string]$ReleaseName,
-        [string]$ReleaseNotes
+        [string]$ReleaseNotes,
+        [bool]$Prerelease = $false
     )
 
     $owner = $Config.GITHUB_OWNER
@@ -24,7 +25,7 @@ function New-GitHubRelease {
         name     = $ReleaseName
         body     = $ReleaseNotes
         draft    = $false
-        prerelease = $false
+        prerelease = $Prerelease
     } | ConvertTo-Json
 
     try {
@@ -32,6 +33,10 @@ function New-GitHubRelease {
     } catch {
         $err = $_.ErrorDetails.Message
         if ($err -match 'already_exists|Reference already exists') {
+            # The tag already exists, so an earlier release holds that name.
+            # Returning it is right for a re-publish of the SAME channel, but it
+            # silently serves the previous APKs if two channels ever collided on
+            # a tag — which is why the tag carries a channel suffix.
             $listUri = "https://api.github.com/repos/$owner/$repo/releases/tags/$TagName"
             return Invoke-RestMethod -Method Get -Uri $listUri -Headers (Get-GitHubApiHeaders -Token $Config.GITHUB_PAT)
         }
@@ -79,14 +84,23 @@ function Publish-GitHubReleaseApks {
         [string]$VersionName,
         [int]$VersionCode,
         [string]$ReleaseNotes,
-        [array]$ApkFiles
+        [array]$ApkFiles,
+        [string]$Channel = 'prod'
     )
 
-    $tagName = "v$VersionName-build$VersionCode"
+    # The channel suffix is what stops two channels colliding on one tag. A beta
+    # at 9101 and a prod at 101 both render as "v2.6.0-build101" without it, and
+    # New-GitHubRelease's already-exists fallback would then hand back the OTHER
+    # channel's release — shipping production APKs under a beta manifest.
+    $tagName = if ($Channel -eq 'beta') {
+        "v$VersionName-build$VersionCode-beta"
+    } else {
+        "v$VersionName-build$VersionCode"
+    }
     $releaseName = "$VersionName+$VersionCode"
 
     Write-Host "Creating GitHub release $tagName..." -ForegroundColor Cyan
-    $release = New-GitHubRelease -Config $Config -TagName $tagName -ReleaseName $releaseName -ReleaseNotes $ReleaseNotes
+    $release = New-GitHubRelease -Config $Config -TagName $tagName -ReleaseName $releaseName -ReleaseNotes $ReleaseNotes -Prerelease ($Channel -eq 'beta')
 
     $apkEntries = @{}
     foreach ($apk in $ApkFiles) {

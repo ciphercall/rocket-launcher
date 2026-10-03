@@ -9,14 +9,19 @@ function Build-UpdateManifest {
         [Parameter(Mandatory = $true)]
         [string]$ReleaseNotes,
         [Parameter(Mandatory = $true)]
-        [hashtable]$ApkEntries
+        [hashtable]$ApkEntries,
+        # Defaults to the release channel's behaviour so an existing caller that
+        # does not pass it is unchanged.
+        [bool]$ForceUpdate = $true,
+        [string]$Channel = 'prod'
     )
 
     $manifest = [ordered]@{
         app_id        = $AppId
+        channel       = $Channel
         version_name  = $VersionName
         version_code  = $VersionCode
-        force_update  = $true
+        force_update  = $ForceUpdate
         release_notes = $ReleaseNotes
         published_at  = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
         apks          = $ApkEntries

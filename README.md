@@ -31,11 +31,14 @@ Maintainer PC                    GitHub (public)                 Android phones
 PUBLISH-OTA-UPDATE.cmd    ──►   ota/manifest.json (main)  ◄──  GET on cold start
   ├─ flutter build APK    ──►   Release assets (APKs)     ◄──  GET when updating
   └─ publish-update.ps1   ──►   GitHub API (PAT auth)
+
+                    ┌─ -Channel beta ─► ota/beta/manifest.json ◄── beta builds only
 ```
 
 | Item | Location | Public URL |
 |------|----------|------------|
-| Manifest | `ota/manifest.json` on `main` | `https://raw.githubusercontent.com/ciphercall/rocket-launcher/main/ota/manifest.json` |
+| Manifest (prod) | `ota/manifest.json` on `main` | `https://raw.githubusercontent.com/ciphercall/rocket-launcher/main/ota/manifest.json` |
+| Manifest (beta) | `ota/beta/manifest.json` on `main` | `https://raw.githubusercontent.com/ciphercall/rocket-launcher/main/ota/beta/manifest.json` |
 | APKs | GitHub Release assets | `https://github.com/ciphercall/rocket-launcher/releases/download/v2.2.3-build{N}/app-arm64-v8a-release.apk` |
 
 The Attendance app fetches the manifest on cold start, then downloads the correct ABI APK from URLs in the manifest.
@@ -71,7 +74,9 @@ GITHUB_OWNER=ciphercall
 GITHUB_REPO=rocket-launcher
 GITHUB_BRANCH=main
 GITHUB_PAT=ghp_your_token_here
-UPDATE_MANIFEST_URL=https://raw.githubusercontent.com/ciphercall/rocket-launcher/main/ota/manifest.json
+OTA_BASE_URL=https://raw.githubusercontent.com/ciphercall/rocket-launcher/main
+BETA_VERSION_FLOOR=9000
+PROD_VERSION_CEILING=8999
 APP_ID=com.pphl.employee_attendance
 ```
 
@@ -84,11 +89,12 @@ Never commit `github.env` (gitignored). Alternatively set `$env:GITHUB_PAT` befo
 When you run publish (via `-Publish` on build script or `PUBLISH-APK-ONLY.cmd`):
 
 1. Read APK versions from `inbox/app-arm64-v8a-release.apk` and `inbox/app-armeabi-v7a-release.apk` (normalizes ABI-offset version codes)
-2. Create GitHub Release tag `v{version}-build{N}` (e.g. `v2.2.3-build41`)
-3. Upload both APKs as release assets
-4. Build manifest JSON with download URLs + SHA-256 hashes
-5. Update `ota/manifest.json` on `main` via GitHub Contents API
-6. Write local copies to `out/manifest.json` and `out/last-publish.json`
+2. Verify the build number is inside the channel's band — **throws** otherwise, before anything is uploaded
+3. Create GitHub Release tag `v{version}-build{N}` (prod) or `v{version}-build{N}-beta` (beta)
+4. Upload both APKs as release assets
+5. Build manifest JSON with download URLs + SHA-256 hashes, plus `channel` and the channel's `force_update`
+6. Update `ota/manifest.json` (prod) or `ota/beta/manifest.json` (beta) on `main` via GitHub Contents API
+7. Write local copies to `out/manifest[-beta].json` and `out/last-publish[-beta].json`
 
 Manifest JSON is compact UTF-8 **without BOM** (`ConvertTo-Json -Compress`).
 
@@ -133,7 +139,29 @@ cd scripts
 
 ## App integration
 
-`Attandance_App\scripts\build-production-apk.ps1` reads `UPDATE_MANIFEST_URL` from `config/github.env` and passes it as `--dart-define` when building APKs.
+`Attandance_App\scripts\build-production-apk.ps1` derives the manifest URL from `OTA_BASE_URL` (or `GITHUB_OWNER`/`GITHUB_REPO`/`GITHUB_BRANCH`) plus the channel, and passes it along with `UPDATE_CHANNEL` as `--dart-define` values.
+
+---
+
+## Channels
+
+Two channels, each with its own manifest file, version band and release tag.
+
+| Channel | Manifest | Version name | Build band | `force_update` | Tag |
+|---|---|---|---|---|---|
+| `prod` (default) | `ota/manifest.json` | `2.6.0` | 100–8999 | `true` | `v2.6.0-build108` |
+| `beta` | `ota/beta/manifest.json` | `2.6.0-beta.1` | 9000–9999 | `false` | `v2.6.0-beta.1-build9001-beta` |
+
+```powershell
+# from Attandance_App\
+powershell -ExecutionPolicy Bypass -File .\scripts\build-production-apk.ps1 -Channel beta -Publish -ReleaseNotes "..."
+```
+
+**The bands are not cosmetic.** The app compares `version_code` as a plain integer with nothing channel-aware in it, so on a shared counter a beta publish at 110 would be offered to every production phone on 109. Disjoint bands are what keep the channels apart.
+
+`publish-update.ps1` **throws** before uploading if the build number is in the wrong band, and the release tag carries a `-beta` suffix so two channels can never collide on one tag — which would otherwise make the `already_exists` fallback serve the other channel's APKs.
+
+Beta has its own inbox (`inbox\beta\`) so a beta build cannot be picked up by a later prod publish.
 
 Disable OTA checks in dev:
 
@@ -158,8 +186,10 @@ rocket launcher/
 ├── config/
 │   ├── github.env.example
 │   └── github.env              # PAT (gitignored)
-├── ota/manifest.json           # seed; updated on GitHub by publish script
-├── inbox/                      # APKs copied here before publish
+├── ota/manifest.json           # prod seed; updated on GitHub by publish script
+│   └── beta/manifest.json      # beta seed
+├── inbox/                      # prod APKs copied here before publish
+│   └── beta/                   # beta APKs
 ├── out/                        # local manifest + last-publish.json audit
 └── scripts/
     ├── publish-update.ps1
