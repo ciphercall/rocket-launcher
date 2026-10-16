@@ -229,6 +229,23 @@ Double-click `PUBLISH-OTA-UPDATE.cmd` → enter notes → wait. No manual APK di
 
 ---
 
+## Additional OTA targets
+
+The launcher now supports hosting multiple Flutter apps through manifest path
+overrides (`OTA_MANIFEST_PATH` / `-ManifestPath`). Administration per app:
+
+| App | Package | Manifest | Inbox |
+|---|---|---|---|
+| Attendance (existing) | `com.pphl.employee_attendance` | `ota/manifest.json` | `inbox` |
+| Gazi Portfolio | `online.peoplesitsolution.gazi_portfolio_app` | `ota/gazi-portfolio/manifest.json` | `inbox/gazi-portfolio` |
+| Dropship Mobile | `com.dropshipbd.shop` | `ota/dropship-mobile/manifest.json` | `inbox/dropship-mobile` |
+
+Example publish command:
+
+```
+powershell -ExecutionPolicy Bypass -File .\scripts\publish-update.ps1 -ConfigFile .\config\gazi-portfolio.env -InboxDir .\inbox\gazi-portfolio -Channel prod -ReleaseNotes "CHANGELOG"
+```
+
 ## Status
 
 **Verified:** August 12, 2026 — end-to-end OTA test (v40 → v41) on a real Android phone with Grameenphone/airtel connectivity.
