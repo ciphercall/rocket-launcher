@@ -3,7 +3,8 @@ function Update-GitHubManifestFile {
         [hashtable]$Config,
         [string]$ManifestJson,
         [string]$CommitMessage,
-        [string]$Channel = 'prod'
+        [string]$Channel = 'prod',
+        [string]$ManifestPath
     )
 
     $owner = $Config.GITHUB_OWNER
@@ -11,7 +12,7 @@ function Update-GitHubManifestFile {
     $branch = if ($Config.GITHUB_BRANCH) { $Config.GITHUB_BRANCH } else { 'main' }
     # Each channel has its own manifest file, or the two feeds would overwrite
     # each other and a beta publish would push beta builds to production phones.
-    $path = if ($Channel -eq 'beta') { 'ota/beta/manifest.json' } else { 'ota/manifest.json' }
+    $path = if ($ManifestPath) { $ManifestPath } elseif ($Channel -eq 'beta') { 'ota/beta/manifest.json' } else { 'ota/manifest.json' }
     $uri = "https://api.github.com/repos/$owner/$repo/contents/$path"
 
     $headers = @{

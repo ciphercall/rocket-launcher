@@ -3,6 +3,9 @@ param(
     [string]$ReleaseNotes = 'App update',
     [string]$InboxDir,
     [string]$ConfigFile,
+    # Optional override for the remote manifest path (e.g. ota/gazi-portfolio/manifest.json).
+    # Falls back to OTA_MANIFEST_PATH from config, then to the channel default.
+    [string]$ManifestPath,
     # 'prod' writes ota/manifest.json and is the default, so an existing caller
     # is unchanged. 'beta' writes ota/beta/manifest.json, tags the release with a
     # -beta suffix, marks it a prerelease, and refuses a build number outside the
@@ -65,6 +68,17 @@ if (-not $config.ContainsKey('GITHUB_BRANCH')) {
 }
 if (-not $config.ContainsKey('UPDATE_MANIFEST_URL')) {
     $config.UPDATE_MANIFEST_URL = "https://raw.githubusercontent.com/$($config.GITHUB_OWNER)/$($config.GITHUB_REPO)/$($config.GITHUB_BRANCH)/ota/manifest.json"
+}
+
+# Resolve which remote manifest file this publish updates. Explicit param wins,
+# then the per-app config key, then the channel default (so an attendance
+# publish with no override is unchanged).
+$manifestRemotePath = if ($ManifestPath) {
+    $ManifestPath
+} elseif ($config.ContainsKey('OTA_MANIFEST_PATH') -and -not [string]::IsNullOrWhiteSpace($config.OTA_MANIFEST_PATH)) {
+    $config.OTA_MANIFEST_PATH
+} else {
+    if ($Channel -eq 'beta') { 'ota/beta/manifest.json' } else { 'ota/manifest.json' }
 }
 
 $arm64Apk = Join-Path $InboxDir 'app-arm64-v8a-release.apk'
@@ -136,7 +150,7 @@ New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 # Per-channel out files, so publishing beta does not overwrite the record of
 # what production last shipped.
 $ChannelSuffix = if ($Channel -eq 'beta') { '-beta' } else { '' }
-$manifestPath = Join-Path $outDir "manifest$($ChannelSuffix).json"
+$outManifestPath = Join-Path $outDir "manifest$($ChannelSuffix).json"
 
 function Write-Utf8NoBomFile {
     param(
@@ -147,15 +161,11 @@ function Write-Utf8NoBomFile {
     [System.IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
 }
 
-Write-Utf8NoBomFile -Path $manifestPath -Content $manifestJson
+Write-Utf8NoBomFile -Path $outManifestPath -Content $manifestJson
 
 # Mirrors the remote layout, so the local seed copy sits where the file it
-# mirrors actually lives. `ota\beta\` is created on demand.
-$otaLocalPath = if ($Channel -eq 'beta') {
-    Join-Path $rootDir 'ota\beta\manifest.json'
-} else {
-    Join-Path $rootDir 'ota\manifest.json'
-}
+# mirrors actually lives.
+$otaLocalPath = Join-Path $rootDir ($manifestRemotePath -replace '/', '\')
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $otaLocalPath) | Out-Null
 Write-Utf8NoBomFile -Path $otaLocalPath -Content $manifestJson
 
@@ -164,7 +174,8 @@ $manifestResult = Update-GitHubManifestFile `
     -Config $config `
     -ManifestJson $manifestJson `
     -CommitMessage "OTA release [$Channel] $versionName+$versionCode" `
-    -Channel $Channel
+    -Channel $Channel `
+    -ManifestPath $manifestRemotePath
 
 $audit = [ordered]@{
     published_at  = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
@@ -185,7 +196,7 @@ Write-Host "  Channel:      $Channel"
 Write-Host "  Manifest URL: $($manifestResult.ManifestUrl)"
 Write-Host "  Release tag:  $($releaseResult.TagName)"
 Write-Host "  Releases URL: https://github.com/$($config.GITHUB_OWNER)/$($config.GITHUB_REPO)/releases/latest" -ForegroundColor Cyan
-Write-Host "  Local manifest: $manifestPath"
+Write-Host "  Local manifest: $outManifestPath"
 Write-Host "  Audit log: $auditPath"
 Write-Host ''
 Write-Host 'Ensure app builds use:' -ForegroundColor Yellow
