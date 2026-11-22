@@ -1,6 +1,10 @@
 config/github.env
-inbox/*.apk
-inbox/beta/*.apk
+# Real per-app publisher configs carry a GitHub PAT. Only the .example files
+# belong in git; an unanchored .env rule never matched config/*.env.
+config/*.env
+!config/*.env.example
+inbox/**/*.apk
 out/last-publish.json
 out/last-publish-beta.json
 out/apks/
+apps/**/build/
